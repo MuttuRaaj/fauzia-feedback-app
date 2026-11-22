@@ -2,7 +2,14 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, CheckCircle2, Star, ArrowLeft, RefreshCw } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Star,
+  ArrowLeft,
+  RefreshCw,
+  Sparkles,
+} from "lucide-react";
 import type { FeedbackRecord } from "@/lib/store";
 import { WARDS } from "@/lib/translations";
 
@@ -26,6 +33,70 @@ export default function HospitalAdminDashboard() {
   useEffect(() => {
     loadFeedback();
   }, []);
+
+  const loadSampleDemoEntries = async () => {
+    const samples = [
+      {
+        language: "en",
+        ward: "Maternity Suite",
+        roomNumber: "Suite 301",
+        patientName: "Sana Farooqui",
+        phone: "",
+        overallRating: 5,
+        doctorRating: 5,
+        nursingRating: 5,
+        hygieneRating: 5,
+        foodRating: 5,
+        tags: ["Caring Nurses", "Clean Room", "Smooth Discharge"],
+        comments:
+          "Doctors and maternity nursing team were very attentive and supportive throughout our stay.",
+      },
+      {
+        language: "mr",
+        ward: "Private Room",
+        roomNumber: "Room 202",
+        patientName: "Priya Deshmukh",
+        phone: "",
+        overallRating: 5,
+        doctorRating: 5,
+        nursingRating: 5,
+        hygieneRating: 4,
+        foodRating: 4,
+        tags: ["Helpful Doctor", "Caring Nurses"],
+        comments:
+          "डॉक्टर आणि नर्सिंग स्टाफने खूप छान काळजी घेतली. स्वच्छता चांगली आहे.",
+      },
+      {
+        language: "hi",
+        ward: "General Ward",
+        roomNumber: "Bed G-04",
+        patientName: "Rukhsar Shaikh",
+        phone: "",
+        overallRating: 2,
+        doctorRating: 4,
+        nursingRating: 3,
+        hygieneRating: 2,
+        foodRating: 3,
+        tags: ["Long Wait Time"],
+        comments:
+          "डॉक्टर की सलाह अच्छी रही, लेकिन सुबह वॉशरूम की सफ़ाई में देरी हुई। कृपया ध्यान दें।",
+      },
+    ];
+
+    setLoading(true);
+    try {
+      for (const item of samples) {
+        await fetch("/api/feedback", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(item),
+        });
+      }
+      await loadFeedback();
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const markResolved = async (id: string) => {
     const res = await fetch(`/api/feedback/${id}`, {
@@ -54,7 +125,15 @@ export default function HospitalAdminDashboard() {
     return true;
   });
 
-  const ScoreBar = ({ label, score, barColor }: { label: string; score: number; barColor: string }) => {
+  const ScoreBar = ({
+    label,
+    score,
+    barColor,
+  }: {
+    label: string;
+    score: number;
+    barColor: string;
+  }) => {
     const pct = Math.min(100, Math.max(0, (score / 5) * 100));
     return (
       <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-3.5">
@@ -63,7 +142,10 @@ export default function HospitalAdminDashboard() {
           <span className="font-bold text-[#0b3954]">{score.toFixed(1)} / 5.0</span>
         </div>
         <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-200">
-          <div className={`h-full rounded-full ${barColor}`} style={{ width: `${pct}%` }} />
+          <div
+            className={`h-full rounded-full ${barColor}`}
+            style={{ width: `${pct}%` }}
+          />
         </div>
       </div>
     );
@@ -74,7 +156,7 @@ export default function HospitalAdminDashboard() {
       <div className="h-1.5 w-full bg-gradient-to-r from-[#0b3954] via-teal-600 to-emerald-500" />
 
       <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3">
+        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-4 py-3">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-14 items-center justify-center rounded-xl border border-slate-100 bg-white p-1">
               <img
@@ -85,7 +167,7 @@ export default function HospitalAdminDashboard() {
             </div>
             <div>
               <h1 className="text-sm font-extrabold text-[#0b3954] sm:text-base">
-                Fauzia Maternity & Nursing Home — Care & Feedback Dashboard
+                Fauzia Maternity &amp; Nursing Home — Care &amp; Feedback Dashboard
               </h1>
               <p className="text-xs font-medium text-emerald-700">
                 Managed by Elite4Ever HealthCare LLP
@@ -93,7 +175,15 @@ export default function HospitalAdminDashboard() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={loadSampleDemoEntries}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-teal-200 bg-teal-50 px-3 py-2 text-xs font-semibold text-teal-900 transition hover:bg-teal-100"
+            >
+              <Sparkles size={14} />
+              <span>Load Demo Entries</span>
+            </button>
             <button
               type="button"
               onClick={loadFeedback}
@@ -114,7 +204,6 @@ export default function HospitalAdminDashboard() {
       </header>
 
       <main className="mx-auto max-w-5xl space-y-6 px-4 py-6">
-        {/* Top KPI Cards */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-2xs">
             <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
@@ -138,14 +227,24 @@ export default function HospitalAdminDashboard() {
           </div>
         </div>
 
-        {/* Department Progress Bars */}
         <div className="grid grid-cols-1 gap-3 rounded-2xl border border-slate-200/90 bg-white p-4 shadow-2xs sm:grid-cols-3">
-          <ScoreBar label="Doctors & Consultation" score={avgDoctor} barColor="bg-[#0b3954]" />
-          <ScoreBar label="Nursing & Maternity Care" score={avgNursing} barColor="bg-teal-600" />
-          <ScoreBar label="Room Cleanliness & Hygiene" score={avgHygiene} barColor="bg-emerald-600" />
+          <ScoreBar
+            label="Doctors & Consultation"
+            score={avgDoctor}
+            barColor="bg-[#0b3954]"
+          />
+          <ScoreBar
+            label="Nursing & Maternity Care"
+            score={avgNursing}
+            barColor="bg-teal-600"
+          />
+          <ScoreBar
+            label="Room Cleanliness & Hygiene"
+            score={avgHygiene}
+            barColor="bg-emerald-600"
+          />
         </div>
 
-        {/* Filter Controls */}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <button
@@ -177,7 +276,7 @@ export default function HospitalAdminDashboard() {
             onChange={(e) => setWardFilter(e.target.value)}
             className="rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 focus:border-teal-700 focus:outline-none"
           >
-            <option value="ALL">All Wards & Rooms</option>
+            <option value="ALL">All Wards &amp; Rooms</option>
             {WARDS.map((w) => (
               <option key={w} value={w}>
                 {w}
@@ -186,7 +285,6 @@ export default function HospitalAdminDashboard() {
           </select>
         </div>
 
-        {/* Feedback Cards */}
         <div className="space-y-3">
           {visibleItems.map((item) => (
             <div
@@ -205,7 +303,7 @@ export default function HospitalAdminDashboard() {
                       {item.ward}
                       {item.roomNumber ? ` • ${item.roomNumber}` : ""}
                     </span>
-                    <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-700 uppercase">
+                    <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold uppercase text-slate-700">
                       {item.language}
                     </span>
                     {item.status === "ALERT_OPEN" && (
@@ -227,7 +325,8 @@ export default function HospitalAdminDashboard() {
 
                 <div className="flex items-center gap-3">
                   <span className="inline-flex items-center gap-1 rounded-xl bg-amber-50 px-3 py-1.5 text-sm font-bold text-amber-900">
-                    {item.overallRating}.0 <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
+                    {item.overallRating}.0{" "}
+                    <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
                   </span>
                   {item.status === "ALERT_OPEN" && (
                     <button
