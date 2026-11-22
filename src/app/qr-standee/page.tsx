@@ -1,63 +1,129 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Printer, QrCode } from "lucide-react";
 import { WARDS } from "@/lib/translations";
 
+const LIVE_FALLBACK_ORIGIN = "https://fauzia-feedback-app.vercel.app";
+
+function StandeeBrandHeader() {
+  return (
+    <div className="mx-auto flex max-w-sm items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-left">
+      <svg
+        viewBox="0 0 120 100"
+        className="h-12 w-14 shrink-0"
+        aria-hidden="true"
+      >
+        <path
+          d="M56 10 C32 14, 14 34, 16 58 C18 40, 34 25, 55 21 Z"
+          fill="#1e2952"
+        />
+        <path
+          d="M58 16 C38 20, 23 36, 22 56 C27 40, 40 28, 57 24 Z"
+          fill="#0d9488"
+        />
+        <path
+          d="M10 54 L36 54 L43 40 L51 74 L60 28 L68 64 L75 51 L108 51"
+          fill="none"
+          stroke="#0284c7"
+          strokeWidth="4.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M24 68 C36 84, 62 90, 96 66 C74 77, 48 77, 29 63 Z"
+          fill="#16a34a"
+        />
+        <path
+          d="M28 73 C42 90, 72 93, 102 68 C78 82, 50 83, 32 68 Z"
+          fill="#1e2952"
+        />
+      </svg>
+      <div className="min-w-0">
+        <div className="font-serif text-lg font-extrabold leading-none tracking-wide text-[#0f2942]">
+          FAUZIA
+        </div>
+        <div className="mt-1 inline-block border-b-2 border-[#16a34a] pb-0.5 text-[8px] font-bold uppercase tracking-wider text-[#1e2952]">
+          MATERNITY &amp; NURSING HOME
+        </div>
+        <div className="mt-1 text-[9px] font-medium leading-tight text-slate-600">
+          Managed by{" "}
+          <span className="font-semibold text-[#1e2952]">Elite4Ever</span>{" "}
+          <span className="font-semibold text-[#0284c7]">HealthCare LLP</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function QrStandeePage() {
-  const [selectedWard, setSelectedWard] = useState<string>(WARDS[0]);
-  const [roomNumber, setRoomNumber] = useState<string>("Suite 301");
+  const [ward, setWard] = useState<string>(WARDS[0]);
+  const [room, setRoom] = useState<string>("Suite 301");
+  const [origin, setOrigin] = useState<string>(LIVE_FALLBACK_ORIGIN);
 
-  const targetUrl = useMemo(() => {
-    const base = typeof window !== "undefined" ? window.location.origin : "http://localhost:3000";
-    const params = new URLSearchParams({ ward: selectedWard });
-    if (roomNumber.trim()) params.set("room", roomNumber.trim());
-    return `${base}/?${params.toString()}`;
-  }, [selectedWard, roomNumber]);
+  useEffect(() => {
+    const currentOrigin = window.location.origin;
+    if (
+      currentOrigin &&
+      !currentOrigin.includes("localhost") &&
+      !currentOrigin.includes("127.0.0.1")
+    ) {
+      setOrigin(currentOrigin);
+    } else {
+      setOrigin(LIVE_FALLBACK_ORIGIN);
+    }
+  }, []);
 
-  const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=10&data=${encodeURIComponent(
+  const targetUrl = `${origin}/?ward=${encodeURIComponent(
+    ward
+  )}&room=${encodeURIComponent(room)}`;
+
+  const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=320x320&margin=12&data=${encodeURIComponent(
     targetUrl
   )}`;
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900 print:bg-white">
-      <div className="border-b border-slate-200 bg-white print:hidden">
+      <header className="border-b border-slate-200 bg-white print:hidden">
         <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-between gap-3 px-4 py-3">
           <div className="flex items-center gap-2">
-            <QrCode size={18} className="text-teal-700" />
-            <h1 className="text-sm font-bold text-[#0b3954]">Bedside QR Standee Generator</h1>
+            <QrCode className="h-5 w-5 text-teal-700" />
+            <h1 className="text-sm font-extrabold text-[#0b3954] sm:text-base">
+              Bedside &amp; Reception QR Standee Generator
+            </h1>
           </div>
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={() => window.print()}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-teal-700 px-3.5 py-2 text-xs font-semibold text-white hover:bg-teal-800"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-teal-700 px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-teal-800"
             >
               <Printer size={14} />
               Print Standee
             </button>
             <Link
               href="/"
-              className="inline-flex items-center gap-1.5 rounded-xl bg-[#0b3954] px-3.5 py-2 text-xs font-semibold text-white"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
             >
               <ArrowLeft size={14} />
-              Back to Form
+              Back
             </Link>
           </div>
         </div>
-      </div>
+      </header>
 
       <main className="mx-auto max-w-4xl space-y-6 px-4 py-6 print:p-0">
-        <div className="grid grid-cols-1 gap-4 rounded-2xl border border-slate-200 bg-white p-5 print:hidden sm:grid-cols-2">
+        {/* Controls (Hidden when printing) */}
+        <div className="grid grid-cols-1 gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs sm:grid-cols-2 print:hidden">
           <div>
-            <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+            <label className="mb-1 block text-xs font-semibold text-slate-700">
               Ward / Department
             </label>
             <select
-              value={selectedWard}
-              onChange={(e) => setSelectedWard(e.target.value)}
-              className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3.5 py-2.5 text-sm font-medium text-slate-800"
+              value={ward}
+              onChange={(e) => setWard(e.target.value)}
+              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-800 focus:border-teal-700 focus:outline-none"
             >
               {WARDS.map((w) => (
                 <option key={w} value={w}>
@@ -67,54 +133,52 @@ export default function QrStandeePage() {
             </select>
           </div>
           <div>
-            <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-              Room / Bed Label
+            <label className="mb-1 block text-xs font-semibold text-slate-700">
+              Room / Bed / Desk Label
             </label>
             <input
               type="text"
-              value={roomNumber}
-              onChange={(e) => setRoomNumber(e.target.value)}
-              placeholder="e.g. Suite 301"
-              className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-800"
+              value={room}
+              onChange={(e) => setRoom(e.target.value)}
+              placeholder="e.g. Suite 301 or Reception Desk"
+              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-800 focus:border-teal-700 focus:outline-none"
             />
           </div>
         </div>
 
-        <div className="mx-auto max-w-md overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm print:max-w-sm print:shadow-none">
-          <div className="h-2 w-full bg-gradient-to-r from-[#0b3954] via-teal-600 to-emerald-500" />
-          <div className="space-y-4 p-6 text-center">
-            <img
-              src="/logo.png"
-              alt="Fauzia Maternity & Nursing Home"
-              className="mx-auto h-16 w-auto object-contain"
-            />
-            <div>
-              <h2 className="text-base font-extrabold text-[#0b3954]">
-                FAUZIA MATERNITY & NURSING HOME
-              </h2>
-              <p className="text-xs font-semibold text-emerald-700">
-                Managed by Elite4Ever HealthCare LLP
-              </p>
-            </div>
+        {/* Printable Standee Card */}
+        <div className="mx-auto max-w-md rounded-3xl border border-slate-200 bg-white p-6 text-center shadow-sm print:border-0 print:shadow-none">
+          <StandeeBrandHeader />
 
-            <div className="inline-block rounded-full bg-teal-50 px-4 py-1 text-xs font-bold text-teal-900">
-              {selectedWard}
-              {roomNumber.trim() ? ` • ${roomNumber.trim()}` : ""}
-            </div>
+          <h2 className="mt-5 text-lg font-extrabold text-[#0b3954]">
+            FAUZIA MATERNITY &amp; NURSING HOME
+          </h2>
+          <p className="mt-0.5 text-xs font-medium text-slate-600">
+            Managed by Elite4Ever HealthCare LLP
+          </p>
 
-            <div className="mx-auto w-fit rounded-2xl border border-slate-200 bg-white p-3">
-              <img src={qrImageUrl} alt="Bedside Feedback QR Code" className="h-48 w-48" />
-            </div>
-
-            <div className="space-y-1">
-              <p className="text-sm font-bold text-slate-900">
-                Scan to Share Your Care Experience
-              </p>
-              <p className="text-xs text-slate-600">
-                English • हिंदी • मराठी • No App Download Required
-              </p>
-            </div>
+          <div className="mt-4 inline-block rounded-full bg-teal-50 px-4 py-1 text-xs font-bold text-teal-900">
+            {ward}
+            {room ? ` • ${room}` : ""}
           </div>
+
+          <div className="mx-auto mt-5 flex h-56 w-56 items-center justify-center rounded-2xl border-2 border-slate-100 bg-white p-3">
+            <img
+              src={qrImageUrl}
+              alt="Scan QR Code for Patient Feedback"
+              className="h-full w-full object-contain"
+            />
+          </div>
+
+          <p className="mt-4 text-sm font-bold text-slate-900">
+            Scan to Share Your Care Experience
+          </p>
+          <p className="mt-1 text-xs font-medium text-slate-600">
+            English • हिंदी • मराठी • No App Download Required
+          </p>
+          <p className="mt-3 break-all text-[10px] text-slate-400 print:hidden">
+            Encoded link: {targetUrl}
+          </p>
         </div>
       </main>
     </div>
