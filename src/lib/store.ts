@@ -20,8 +20,10 @@ export interface FeedbackRecord {
   createdAt: string;
 }
 
-const DATA_DIR = path.join(process.cwd(), ".data");
-const DATA_FILE = path.join(DATA_DIR, "feedback.json");
+const LOCAL_DATA_DIR = path.join(process.cwd(), ".data");
+const LOCAL_DATA_FILE = path.join(LOCAL_DATA_DIR, "feedback.json");
+const TMP_DATA_DIR = path.join("/tmp", "fauzia-feedback-data");
+const TMP_DATA_FILE = path.join(TMP_DATA_DIR, "feedback.json");
 
 const SEED_DATA: FeedbackRecord[] = [
   {
@@ -77,24 +79,75 @@ const SEED_DATA: FeedbackRecord[] = [
   },
 ];
 
-function ensureStore(): FeedbackRecord[] {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-  }
-  if (!fs.existsSync(DATA_FILE)) {
-    fs.writeFileSync(DATA_FILE, JSON.stringify(SEED_DATA, null, 2), "utf-8");
-    return SEED_DATA;
-  }
+let memoryStore: FeedbackRecord[] | null = null;
+
+function cloneSeed(): FeedbackRecord[] {
+  return SEED_DATA.map((item) => ({ ...item, tags: [...item.tags] }));
+}
+
+function readJsonFile(filePath: string): FeedbackRecord[] | null {
   try {
-    const raw = fs.readFileSync(DATA_FILE, "utf-8");
-    return JSON.parse(raw) as FeedbackRecord[];
+    if (!fs.existsSync(filePath)) return null;
+    const raw = fs.readFileSync(filePath, "utf-8");
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as FeedbackRecord[]) : null;
   } catch {
-    return SEED_DATA;
+    return null;
+  }
+}
+
+function writeJsonFile(
+  dirPath: string,
+  filePath: string,
+  records: FeedbackRecord[]
+): boolean {
+  try {
+    if (!fs.existsSync(dirPath)) {
+      fs.mkdirSync(dirPath, { recursive: true });
+    }
+    fs.writeFileSync(filePath, JSON.stringify(records, null, 2), "utf-8");
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function ensureStore(): FeedbackRecord[] {
+  if (memoryStore) {
+    return memoryStore;
+  }
+
+  const fromLocal = readJsonFile(LOCAL_DATA_FILE);
+  if (fromLocal) {
+    memoryStore = fromLocal;
+    return memoryStore;
+  }
+
+  const fromTmp = readJsonFile(TMP_DATA_FILE);
+  if (fromTmp) {
+    memoryStore = fromTmp;
+    return memoryStore;
+  }
+
+  const seeded = cloneSeed();
+  memoryStore = seeded;
+
+  if (!writeJsonFile(LOCAL_DATA_DIR, LOCAL_DATA_FILE, seeded)) {
+    writeJsonFile(TMP_DATA_DIR, TMP_DATA_FILE, seeded);
+  }
+
+  return memoryStore;
+}
+
+function persistStore(records: FeedbackRecord[]): void {
+  memoryStore = records;
+  if (!writeJsonFile(LOCAL_DATA_DIR, LOCAL_DATA_FILE, records)) {
+    writeJsonFile(TMP_DATA_DIR, TMP_DATA_FILE, records);
   }
 }
 
 export function getAllFeedback(): FeedbackRecord[] {
-  return ensureStore().sort(
+  return [...ensureStore()].sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   );
 }
@@ -110,8 +163,8 @@ export function createFeedback(
     status: input.overallRating <= 3 ? "ALERT_OPEN" : "NORMAL",
     createdAt: new Date().toISOString(),
   };
-  current.unshift(record);
-  fs.writeFileSync(DATA_FILE, JSON.stringify(current, null, 2), "utf-8");
+  const updated = [record, ...current];
+  persistStore(updated);
   return record;
 }
 
@@ -122,7 +175,8 @@ export function updateFeedbackStatus(
   const current = ensureStore();
   const idx = current.findIndex((item) => item.id === id);
   if (idx === -1) return null;
-  current[idx] = { ...current[idx], status };
-  fs.writeFileSync(DATA_FILE, JSON.stringify(current, null, 2), "utf-8");
-  return current[idx];
+  const updated = [...current];
+  updated[idx] = { ...updated[idx], status };
+  persistStore(updated);
+  return updated[idx];
 }
