@@ -4,6 +4,7 @@ import { LangCode } from "./translations";
 
 export interface FeedbackRecord {
   id: string;
+  dispatchId?: string;
   patientName?: string;
   phone?: string;
   ward: string;
@@ -20,14 +21,34 @@ export interface FeedbackRecord {
   createdAt: string;
 }
 
+export interface PatientDispatchRecord {
+  id: string;
+  patientName: string;
+  guardianPhone: string;
+  ward: string;
+  roomNumber?: string;
+  language: LangCode;
+  status: "PENDING" | "SENT" | "SUBMITTED";
+  sentVia?: "WHATSAPP" | "SMS";
+  sentAt?: string;
+  submittedRating?: number;
+  createdAt: string;
+}
+
+interface StoreShape {
+  feedback: FeedbackRecord[];
+  dispatches: PatientDispatchRecord[];
+}
+
 const LOCAL_DATA_DIR = path.join(process.cwd(), ".data");
 const LOCAL_DATA_FILE = path.join(LOCAL_DATA_DIR, "feedback.json");
 const TMP_DATA_DIR = path.join("/tmp", "fauzia-feedback-data");
 const TMP_DATA_FILE = path.join(TMP_DATA_DIR, "feedback.json");
 
-const SEED_DATA: FeedbackRecord[] = [
+const SEED_FEEDBACK: FeedbackRecord[] = [
   {
     id: "FB-1042",
+    dispatchId: "REG-201",
     patientName: "Farhana Khan",
     phone: "9823011223",
     ward: "Maternity Suite",
@@ -45,6 +66,7 @@ const SEED_DATA: FeedbackRecord[] = [
   },
   {
     id: "FB-1041",
+    dispatchId: "REG-202",
     patientName: "Snehal Kulkarni",
     phone: "9765409812",
     ward: "Private Room",
@@ -60,37 +82,76 @@ const SEED_DATA: FeedbackRecord[] = [
     status: "ALERT_OPEN",
     createdAt: new Date(Date.now() - 1000 * 60 * 110).toISOString(),
   },
+];
+
+const SEED_DISPATCHES: PatientDispatchRecord[] = [
   {
-    id: "FB-1040",
-    patientName: "Zoya Siddiqui",
-    phone: "9920144556",
-    ward: "General Ward",
-    roomNumber: "Bed G-08",
+    id: "REG-203",
+    patientName: "Ayesha Shaikh",
+    guardianPhone: "9820455110",
+    ward: "Maternity Suite",
+    roomNumber: "Suite 301",
     language: "en",
-    overallRating: 4,
-    doctorRating: 5,
-    nursingRating: 4,
-    hygieneRating: 4,
-    foodRating: 4,
-    tags: ["Caring Nurses", "Quick Response", "Polite Support Staff"],
-    comments: "Doctors explained every step clearly to our family.",
-    status: "NORMAL",
-    createdAt: new Date(Date.now() - 1000 * 60 * 240).toISOString(),
+    status: "PENDING",
+    createdAt: new Date(Date.now() - 1000 * 60 * 12).toISOString(),
+  },
+  {
+    id: "REG-201",
+    patientName: "Farhana Khan",
+    guardianPhone: "9823011223",
+    ward: "Maternity Suite",
+    roomNumber: "Suite 302",
+    language: "hi",
+    status: "SUBMITTED",
+    sentVia: "WHATSAPP",
+    sentAt: new Date(Date.now() - 1000 * 60 * 50).toISOString(),
+    submittedRating: 5,
+    createdAt: new Date(Date.now() - 1000 * 60 * 60).toISOString(),
+  },
+  {
+    id: "REG-202",
+    patientName: "Snehal Kulkarni",
+    guardianPhone: "9765409812",
+    ward: "Private Room",
+    roomNumber: "Room 204",
+    language: "mr",
+    status: "SUBMITTED",
+    sentVia: "SMS",
+    sentAt: new Date(Date.now() - 1000 * 60 * 130).toISOString(),
+    submittedRating: 2,
+    createdAt: new Date(Date.now() - 1000 * 60 * 140).toISOString(),
   },
 ];
 
-let memoryStore: FeedbackRecord[] | null = null;
+let memoryStore: StoreShape | null = null;
 
-function cloneSeed(): FeedbackRecord[] {
-  return SEED_DATA.map((item) => ({ ...item, tags: [...item.tags] }));
+function cloneSeed(): StoreShape {
+  return {
+    feedback: SEED_FEEDBACK.map((item) => ({ ...item, tags: [...item.tags] })),
+    dispatches: SEED_DISPATCHES.map((item) => ({ ...item })),
+  };
 }
 
-function readJsonFile(filePath: string): FeedbackRecord[] | null {
+function readJsonFile(filePath: string): StoreShape | null {
   try {
     if (!fs.existsSync(filePath)) return null;
     const raw = fs.readFileSync(filePath, "utf-8");
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as FeedbackRecord[]) : null;
+    if (Array.isArray(parsed)) {
+      return {
+        feedback: parsed as FeedbackRecord[],
+        dispatches: SEED_DISPATCHES.map((item) => ({ ...item })),
+      };
+    }
+    if (parsed && Array.isArray(parsed.feedback)) {
+      return {
+        feedback: parsed.feedback as FeedbackRecord[],
+        dispatches: Array.isArray(parsed.dispatches)
+          ? (parsed.dispatches as PatientDispatchRecord[])
+          : [],
+      };
+    }
+    return null;
   } catch {
     return null;
   }
@@ -99,23 +160,21 @@ function readJsonFile(filePath: string): FeedbackRecord[] | null {
 function writeJsonFile(
   dirPath: string,
   filePath: string,
-  records: FeedbackRecord[]
+  data: StoreShape
 ): boolean {
   try {
     if (!fs.existsSync(dirPath)) {
       fs.mkdirSync(dirPath, { recursive: true });
     }
-    fs.writeFileSync(filePath, JSON.stringify(records, null, 2), "utf-8");
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf-8");
     return true;
   } catch {
     return false;
   }
 }
 
-function ensureStore(): FeedbackRecord[] {
-  if (memoryStore) {
-    return memoryStore;
-  }
+function ensureStore(): StoreShape {
+  if (memoryStore) return memoryStore;
 
   const fromLocal = readJsonFile(LOCAL_DATA_FILE);
   if (fromLocal) {
@@ -131,23 +190,21 @@ function ensureStore(): FeedbackRecord[] {
 
   const seeded = cloneSeed();
   memoryStore = seeded;
-
   if (!writeJsonFile(LOCAL_DATA_DIR, LOCAL_DATA_FILE, seeded)) {
     writeJsonFile(TMP_DATA_DIR, TMP_DATA_FILE, seeded);
   }
-
   return memoryStore;
 }
 
-function persistStore(records: FeedbackRecord[]): void {
-  memoryStore = records;
-  if (!writeJsonFile(LOCAL_DATA_DIR, LOCAL_DATA_FILE, records)) {
-    writeJsonFile(TMP_DATA_DIR, TMP_DATA_FILE, records);
+function persistStore(data: StoreShape): void {
+  memoryStore = data;
+  if (!writeJsonFile(LOCAL_DATA_DIR, LOCAL_DATA_FILE, data)) {
+    writeJsonFile(TMP_DATA_DIR, TMP_DATA_FILE, data);
   }
 }
 
 export function getAllFeedback(): FeedbackRecord[] {
-  return [...ensureStore()].sort(
+  return [...ensureStore().feedback].sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   );
 }
@@ -156,15 +213,35 @@ export function createFeedback(
   input: Omit<FeedbackRecord, "id" | "status" | "createdAt">
 ): FeedbackRecord {
   const current = ensureStore();
-  const nextNum = 1043 + current.length;
+  const nextNum = 1043 + current.feedback.length;
   const record: FeedbackRecord = {
     ...input,
     id: `FB-${nextNum}`,
     status: input.overallRating <= 3 ? "ALERT_OPEN" : "NORMAL",
     createdAt: new Date().toISOString(),
   };
-  const updated = [record, ...current];
-  persistStore(updated);
+
+  const cleanPhone = (input.phone || "").replace(/\D/g, "").slice(-10);
+  const updatedDispatches = current.dispatches.map((d) => {
+    const matchesId = input.dispatchId && d.id === input.dispatchId;
+    const matchesPhone =
+      cleanPhone.length === 10 &&
+      d.guardianPhone.replace(/\D/g, "").slice(-10) === cleanPhone &&
+      d.status !== "SUBMITTED";
+    if (matchesId || matchesPhone) {
+      return {
+        ...d,
+        status: "SUBMITTED" as const,
+        submittedRating: input.overallRating,
+      };
+    }
+    return d;
+  });
+
+  persistStore({
+    feedback: [record, ...current.feedback],
+    dispatches: updatedDispatches,
+  });
   return record;
 }
 
@@ -173,10 +250,66 @@ export function updateFeedbackStatus(
   status: "NORMAL" | "ALERT_OPEN" | "RESOLVED"
 ): FeedbackRecord | null {
   const current = ensureStore();
-  const idx = current.findIndex((item) => item.id === id);
+  const idx = current.feedback.findIndex((item) => item.id === id);
   if (idx === -1) return null;
-  const updated = [...current];
+  const updated = [...current.feedback];
   updated[idx] = { ...updated[idx], status };
-  persistStore(updated);
+  persistStore({ ...current, feedback: updated });
+  return updated[idx];
+}
+
+export function getAllDispatches(): PatientDispatchRecord[] {
+  return [...ensureStore().dispatches].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
+}
+
+export function createDispatches(
+  entries: Array<{
+    patientName: string;
+    guardianPhone: string;
+    ward: string;
+    roomNumber?: string;
+    language: LangCode;
+  }>
+): PatientDispatchRecord[] {
+  const current = ensureStore();
+  let counter = 204 + current.dispatches.length;
+  const created: PatientDispatchRecord[] = entries.map((entry) => {
+    const item: PatientDispatchRecord = {
+      id: `REG-${counter++}`,
+      patientName: entry.patientName.trim(),
+      guardianPhone: entry.guardianPhone.trim(),
+      ward: entry.ward,
+      roomNumber: entry.roomNumber?.trim() || "",
+      language: entry.language,
+      status: "PENDING",
+      createdAt: new Date().toISOString(),
+    };
+    return item;
+  });
+
+  persistStore({
+    ...current,
+    dispatches: [...created, ...current.dispatches],
+  });
+  return created;
+}
+
+export function markDispatchSent(
+  id: string,
+  channel: "WHATSAPP" | "SMS"
+): PatientDispatchRecord | null {
+  const current = ensureStore();
+  const idx = current.dispatches.findIndex((item) => item.id === id);
+  if (idx === -1) return null;
+  const updated = [...current.dispatches];
+  updated[idx] = {
+    ...updated[idx],
+    status: updated[idx].status === "SUBMITTED" ? "SUBMITTED" : "SENT",
+    sentVia: channel,
+    sentAt: new Date().toISOString(),
+  };
+  persistStore({ ...current, dispatches: updated });
   return updated[idx];
 }
