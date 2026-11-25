@@ -265,7 +265,13 @@ function FeedbackFormContent() {
                 type="text"
                 value={roomNumber}
                 onChange={(e) => setRoomNumber(e.target.value)}
-                placeholder="e.g. Suite 301"
+                placeholder={
+                  lang === "hi"
+                    ? "उदा. बेड 12 / रूम 204"
+                    : lang === "mr"
+                    ? "उदा. बेड १२ / रूम २०४"
+                    : "e.g. Bed 12 / Room 204"
+                }
                 className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-xs font-medium text-slate-800"
               />
             </div>
